@@ -1,0 +1,27 @@
+{
+    "id": "A7DA1A9B",
+    "path": "E:/data training/build R pkg/tinysignifr/R/add_pvalue_facet_annotation.R",
+    "project_path": "R/add_pvalue_facet_annotation.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": true,
+    "created": 1775505940205.0,
+    "source_on_save": false,
+    "relative_order": 4,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "31,42",
+        "scrollLine": "18"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1775505953,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1775511627290,
+    "read_only": false,
+    "read_only_alternatives": []
+}
