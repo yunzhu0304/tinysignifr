@@ -1,119 +1,184 @@
-#' Add significance annotations across two facets
+#' Add significance annotations across two facet panels
 #'
-#' Add horizontal significance lines and labels across two facet panels in a
-#' faceted `ggplot2` figure. This function is designed for plots with exactly
-#' two facet levels arranged horizontally, and is especially useful when
-#' comparisons are made between the same x-group across two facets.
+#' Draw horizontal significance lines and labels that span across two
+#' horizontally adjacent facet panels in a `ggplot2` figure.
 #'
-#' In addition to drawing cross-facet significance annotations, this function
-#' can:
+#' In addition to cross-facet annotations, this function:
 #' \itemize{
-#'   \item automatically remove the gap between facet panels on the x-axis,
-#'   \item hide the default x-axis line,
-#'   \item estimate a safe upper y-limit to avoid overlap between annotations
-#'   and the plotting region,
-#'   \item place `"ns"` labels slightly higher than significance symbols.
+#'   \item draws a broken x-axis between the two facet panels,
+#'   \item can automatically remove the default continuous x-axis line and set
+#'     panel spacing to zero (`auto_panel_fix = TRUE`),
+#'   \item can automatically expand the upper y-limit to prevent clipping of
+#'     labels and lines (`auto_ylim = TRUE`),
+#'   \item coordinates with within-facet bracket heights via `facet_stat_data`
+#'     to reduce overlap,
+#'   \item inherits axis line colour, axis line width, and text family from the
+#'     active ggplot2 theme.
 #' }
 #'
-#' @param plot_data A data frame used for plotting. Objects coercible to a
-#'   `data.frame` are also accepted.
-#' @param cross_data A data frame containing cross-facet comparison results.
-#'   This is typically the `@stat` slot extracted from the S4 result returned
-#'   by [tinystatr::stat3()]. It must contain at least `group_col` and `label`.
-#' @param x A single character string giving the x variable name in `plot_data`.
-#' @param y A single character string giving the y variable name in `plot_data`.
-#' @param facet_var A single character string giving the facet variable name in
-#'   `plot_data`.
-#' @param facet_levels Optional character vector of length 2 specifying which
-#'   two facet levels to connect. If `NULL`, the function uses the detected facet
-#'   order in `plot_data`.
-#' @param group_col A single character string giving the column name in
-#'   `cross_data` that identifies the x-group for cross-facet comparison.
-#' @param label A single character string giving the column name in
-#'   `cross_data` that stores significance labels, such as `"*"`, `"**"`,
-#'   or `"ns"`.
-#' @param hide.ns Logical; if `TRUE`, rows with label `"ns"` are removed before
-#'   plotting.
-#' @param x_levels Optional character vector specifying the order of x groups.
-#'   If `NULL`, the order is inferred from `plot_data`.
-#' @param y_base Optional numeric scalar giving the baseline y position for the
-#'   first cross-facet annotation. If `NULL`, the function estimates it from the
-#'   maximum of the plotted data and optional facet annotation positions.
-#' @param facet_stat_data Optional statistical results for within-facet
-#'   comparisons, typically the `@stat` slot from [tinystatr::stat3()]. When
-#'   provided and `y_base = NULL`, this is used to prevent overlap between
-#'   within-facet and cross-facet annotations.
-#' @param expand Numeric scalar controlling how far above the base height the
-#'   first cross-facet annotation is placed.
-#' @param step.increase Numeric scalar controlling the vertical spacing between
-#'   successive cross-facet annotations.
-#' @param size Numeric scalar giving the label text size.
-#' @param fontface Character string specifying label font face, such as
-#'   `"plain"` or `"bold"`.
-#' @param line_width Numeric scalar giving the width of cross-facet horizontal
-#'   lines.
-#' @param sig_offset Optional numeric scalar controlling the vertical offset of
-#'   significant labels (e.g. `"*"`, `"**"`). If `NULL`, an automatic value is
-#'   used.
-#' @param ns_offset Optional numeric scalar controlling the vertical offset of
-#'   `"ns"` labels. If `NULL`, an automatic value is used and is set slightly
-#'   higher than `sig_offset`.
-#' @param axis_extend Optional numeric scalar controlling how far the custom
-#'   broken x-axis extends into adjacent facet boundaries. If `NULL`, this is
-#'   automatically chosen based on the number of x groups.
-#' @param axis_linewidth Numeric scalar giving the line width of the custom
-#'   broken x-axis.
-#' @param auto_panel_fix Logical; if `TRUE`, automatically add
-#'   `panel.spacing.x = unit(0, "cm")` and `axis.line.x = element_blank()` to
-#'   reduce visible gaps between facets.
-#' @param auto_ylim Logical; if `TRUE`, automatically expand the y-axis upper
-#'   limit based on the maximum of raw data, within-facet annotations, and
-#'   cross-facet annotations.
-#' @param ylim_top_expand Numeric scalar giving extra expansion above the highest
-#'   detected annotation when `auto_ylim = TRUE`.
+#' This function is intended to be used together with
+#' [add_pvalue_facet_annotation()] when both within-facet and cross-facet
+#' annotations are needed.
 #'
-#' @return A list of `ggplot2` layers that can be added to a ggplot object.
+#' @param plot_data A data frame (or object coercible to one) used for plotting.
+#'   Must include the columns named by `x`, `y`, and `facet_var`.
+#' @param cross_data A data frame (or object coercible to one) containing
+#'   cross-facet comparison results. Must contain at least the columns named by
+#'   `group_col` and `label`. Typically constructed from the `@stat` slot of
+#'   [tinystatr::stat2()] or [tinystatr::stat3()], with one row per x-group.
+#' @param x A single character string giving the x-axis variable name in
+#'   `plot_data`.
+#' @param y A single character string giving the y-axis variable name in
+#'   `plot_data`.
+#' @param facet_var A single character string giving the facet variable name in
+#'   `plot_data`. Must match the variable used in `facet_wrap()`.
+#' @param facet_levels An optional character vector of length 2 specifying the
+#'   two facet levels to connect, in left-to-right order. When `NULL` (default),
+#'   the order is auto-detected from `plot_data[[facet_var]]`.
+#' @param group_col A single character string giving the column name in
+#'   `cross_data` that identifies the x-group for each cross-facet comparison.
+#'   Defaults to `"group"`.
+#' @param label A single character string giving the column name in `cross_data`
+#'   that stores significance labels. Defaults to `"p.adj.signif"`.
+#' @param hide.ns Controls removal of non-significant rows before plotting.
+#'   Defaults to `TRUE`. See [add_pvalue_annotation()] for accepted values.
+#' @param signif.cutoff A numeric threshold used when `hide.ns` targets a
+#'   numeric column. Defaults to `0.05`.
+#' @param x_levels An optional character vector specifying the order of x
+#'   groups. When `NULL` (default), inferred from `plot_data[[x]]`.
+#' @param y_base An optional single finite numeric value giving the baseline
+#'   y-position from which cross-facet annotation heights are computed. When
+#'   `NULL` (default), `y_base` is estimated automatically from the maximum of
+#'   the raw data and, if provided, the highest within-facet bracket.
+#' @param facet_stat_data An optional data frame containing within-facet
+#'   comparison results, typically the same `stat_data` passed to
+#'   [add_pvalue_facet_annotation()]. When provided and `y_base = NULL`, this is
+#'   used to place cross-facet annotations above within-facet brackets.
+#' @param expand A numeric scalar controlling how far above `y_base` the first
+#'   cross-facet line is placed, expressed as a fraction of the y-range.
+#'   Defaults to `0.12`.
+#' @param step.increase A numeric scalar controlling the vertical spacing
+#'   between successive cross-facet lines, expressed as a fraction of the
+#'   y-range. Defaults to `0.10`.
+#' @param size A numeric scalar giving the text size of cross-facet labels.
+#'   Defaults to `8`.
+#' @param fontface A character string specifying the font face for cross-facet
+#'   labels, e.g. `"bold"` or `"plain"`. Defaults to `"plain"`.
+#' @param line_width A numeric scalar giving the visual width of cross-facet
+#'   horizontal lines, on a ggplot-like scale. Defaults to `1`.
+#' @param sig_offset Reserved for backward compatibility. Currently validated
+#'   but not used in the current label placement system.
+#' @param ns_offset Reserved for backward compatibility. Currently validated
+#'   but not used in the current label placement system.
+#' @param sig_nudge_pt A numeric scalar giving the vertical offset, in points,
+#'   between a significant label (`"*"`, `"**"`, `"***"`, etc.) and its
+#'   horizontal line. Can be negative. Defaults to `-6`.
+#' @param ns_nudge_pt A numeric scalar giving the vertical offset, in points,
+#'   between an `"ns"` label and its horizontal line. Defaults to `3.5`.
+#' @param label_band_mult A positive numeric scalar giving the vertical height
+#'   reserved above each cross-facet line for the label, expressed as a
+#'   fraction of the y-range. Defaults to `0.06`.
+#' @param axis_extend An optional non-negative numeric scalar controlling how
+#'   far the broken x-axis extends toward the panel gap. A smaller value
+#'   produces a wider visible gap. When `NULL` (default), the value is chosen
+#'   automatically based on the number of x groups.
+#' @param auto_panel_fix Logical. When `TRUE` (default), automatically injects
+#'   `theme(panel.spacing.x = unit(0, "cm"), axis.line.x = element_blank())`
+#'   to close the gap between panels and remove the default continuous x-axis
+#'   line.
+#' @param auto_ylim Logical. When `TRUE` (default), automatically injects
+#'   `coord_cartesian(ylim = c(y_min, y_upper), clip = "off")`, where `y_upper`
+#'   is computed from the highest annotation position. When `FALSE`, only
+#'   `coord_cartesian(clip = "off")` is added.
+#' @param ylim_top_expand A single non-negative numeric value giving additional
+#'   expansion above the highest detected annotation when `auto_ylim = TRUE`,
+#'   expressed as a fraction of the y-range. Defaults to `0.002`.
+#'
+#' @return A list of ggplot2 layers that can be added to a `ggplot` object
+#'   with `+`.
 #'
 #' @details
-#' This function currently supports exactly two facet panels. It is intended for
-#' horizontally arranged facets, such as those produced by
-#' `facet_wrap(..., nrow = 1)` or equivalent layouts.
+#' This function currently supports exactly two horizontally arranged facet
+#' panels.
 #'
-#' The `cross_data` input should contain one row per cross-facet annotation. The
-#' group specified by `group_col` must match one of the x-axis groups in
-#' `plot_data`.
+#' The broken x-axis is drawn using the current ggplot2 theme axis line
+#' settings. Cross-facet text labels inherit the current theme text family, and
+#' line and text colour inherit the current theme axis line colour.
 #'
-#' If `facet_stat_data` is supplied, the function internally computes the
-#' maximum within-facet annotation height and uses it together with the raw data
-#' maximum to determine a safe starting height for cross-facet annotations.
+#' Label positions are controlled using fixed point-based offsets
+#' (`sig_nudge_pt`, `ns_nudge_pt`) rather than pure data-scale offsets, so the
+#' apparent distance between the label and the line remains more stable when the
+#' figure size changes.
 #'
-#' Because this function may internally modify panel spacing, x-axis appearance,
-#' and y-axis limits, it should usually be added at the end of the ggplot
-#' construction, preferably after `theme()` and other scale or coordinate
-#' settings.
+#' This function should generally be added as the final layer in the ggplot call
+#' chain, because it injects `coord_cartesian()` and may also inject a `theme()`
+#' adjustment.
 #'
 #' @examples
 #' \dontrun{
-#' p +
-#'   theme_prism() +
-#'   theme(...) +
+#' library(ggplot2)
+#' library(dplyr)
+#' library(tinystatr)
+#' library(tinysignifr)
+#'
+#' data("ToothGrowth")
+#' ToothGrowth$dose <- factor(ToothGrowth$dose, levels = c("0.5", "1", "2"))
+#' ToothGrowth$supp <- factor(ToothGrowth$supp, levels = c("OJ", "VC"))
+#'
+#' stat_within <- rbind(
+#'   stat3(
+#'     dplyr::filter(ToothGrowth, supp == "OJ"),
+#'     "dose", "len", formula = len ~ dose
+#'   )@stat %>% mutate(supp = "OJ"),
+#'   stat3(
+#'     dplyr::filter(ToothGrowth, supp == "VC"),
+#'     "dose", "len", formula = len ~ dose
+#'   )@stat %>% mutate(supp = "VC")
+#' )
+#'
+#' stat_cross <- do.call(rbind, lapply(levels(ToothGrowth$dose), function(d) {
+#'   stat3(
+#'     dplyr::filter(ToothGrowth, dose == d),
+#'     "supp", "len", formula = len ~ supp
+#'   )@stat %>% mutate(dose_group = d)
+#' }))
+#'
+#' ggplot(ToothGrowth, aes(x = dose, y = len)) +
+#'   geom_violin(aes(color = dose), fill = NA) +
+#'   facet_wrap(~ supp, strip.position = "bottom") +
+#'   scale_x_discrete(expand = expansion(add = 0.7)) +
+#'   theme_classic() +
+#'   theme(
+#'     strip.placement  = "outside",
+#'     strip.background = element_rect(color = NA),
+#'     legend.position  = "none"
+#'   ) +
+#'   add_pvalue_facet_annotation(
+#'     plot_data = ToothGrowth,
+#'     stat_data = stat_within,
+#'     x = "dose",
+#'     y = "len",
+#'     facet_var = "supp",
+#'     hide.ns = FALSE
+#'   ) +
 #'   add_cross_facet_annotation(
-#'     plot_data = testdata,
-#'     cross_data = cross_cpg,
-#'     x = "group",
-#'     y = "value",
-#'     facet_var = "diet",
-#'     group_col = "smoke",
+#'     plot_data = ToothGrowth,
+#'     cross_data = stat_cross,
+#'     x = "dose",
+#'     y = "len",
+#'     facet_var = "supp",
+#'     group_col = "dose_group",
 #'     label = "p.adj.signif",
-#'     hide.ns = TRUE,
-#'     facet_stat_data = stat_cpg,
-#'     expand = 0.12,
-#'     step.increase = 0.10,
-#'     size = 6
+#'     hide.ns = FALSE,
+#'     facet_stat_data = stat_within
 #'   )
 #' }
 #'
+#' @seealso [add_pvalue_annotation()], [add_pvalue_facet_annotation()],
+#'   [add_pvalue_mixed()]
+#'
 #' @export
+
 add_cross_facet_annotation <- function(plot_data,
                                        cross_data,
                                        x,
@@ -123,18 +188,21 @@ add_cross_facet_annotation <- function(plot_data,
                                        group_col      = "group",
                                        label          = "p.adj.signif",
                                        hide.ns        = TRUE,
+                                       signif.cutoff  = 0.05,
                                        x_levels       = NULL,
                                        y_base         = NULL,
                                        facet_stat_data = NULL,
                                        expand         = 0.12,
                                        step.increase  = 0.10,
                                        size           = 8,
-                                       fontface       = "bold",
-                                       line_width     = 3,
+                                       fontface       = "plain",
+                                       line_width     = 1,
                                        sig_offset     = NULL,
                                        ns_offset      = NULL,
+                                       sig_nudge_pt   = -6,
+                                       ns_nudge_pt    = 3.5,
+                                       label_band_mult = 0.06,
                                        axis_extend    = NULL,
-                                       axis_linewidth = 1,
                                        auto_panel_fix = TRUE,
                                        auto_ylim      = TRUE,
                                        ylim_top_expand = 0.002) {
@@ -150,9 +218,17 @@ add_cross_facet_annotation <- function(plot_data,
   .validate_single_string(facet_var, "facet_var")
   .validate_single_string(group_col, "group_col")
   .validate_single_string(label, "label")
-  .validate_logical_scalar(hide.ns, "hide.ns")
   .validate_logical_scalar(auto_panel_fix, "auto_panel_fix")
   .validate_logical_scalar(auto_ylim, "auto_ylim")
+
+  if (!is.logical(hide.ns) && !is.character(hide.ns)) {
+    stop("`hide.ns` must be TRUE/FALSE or a character column specifier.", call. = FALSE)
+  }
+
+  if (!is.numeric(signif.cutoff) || length(signif.cutoff) != 1 ||
+      is.na(signif.cutoff) || !is.finite(signif.cutoff) || signif.cutoff < 0) {
+    stop("`signif.cutoff` must be one non-negative finite numeric value.", call. = FALSE)
+  }
 
   if (!is.null(y_base)) {
     if (!is.numeric(y_base) || length(y_base) != 1 || is.na(y_base) || !is.finite(y_base)) {
@@ -174,6 +250,21 @@ add_cross_facet_annotation <- function(plot_data,
     }
   }
 
+  if (!is.numeric(sig_nudge_pt) || length(sig_nudge_pt) != 1 ||
+      is.na(sig_nudge_pt) || !is.finite(sig_nudge_pt)) {
+    stop("`sig_nudge_pt` must be one finite numeric value.", call. = FALSE)
+  }
+
+  if (!is.numeric(ns_nudge_pt) || length(ns_nudge_pt) != 1 ||
+      is.na(ns_nudge_pt) || !is.finite(ns_nudge_pt)) {
+    stop("`ns_nudge_pt` must be one finite numeric value.", call. = FALSE)
+  }
+
+  if (!is.numeric(label_band_mult) || length(label_band_mult) != 1 ||
+      is.na(label_band_mult) || !is.finite(label_band_mult) || label_band_mult <= 0) {
+    stop("`label_band_mult` must be one positive finite numeric value.", call. = FALSE)
+  }
+
   if (!is.null(axis_extend)) {
     if (!is.numeric(axis_extend) || length(axis_extend) != 1 || is.na(axis_extend) ||
         !is.finite(axis_extend) || axis_extend < 0) {
@@ -181,8 +272,13 @@ add_cross_facet_annotation <- function(plot_data,
     }
   }
 
-  if (!is.numeric(ylim_top_expand) || length(ylim_top_expand) != 1 || is.na(ylim_top_expand) ||
-      !is.finite(ylim_top_expand) || ylim_top_expand < 0) {
+  if (!is.numeric(line_width) || length(line_width) != 1 ||
+      is.na(line_width) || !is.finite(line_width) || line_width < 0) {
+    stop("`line_width` must be one non-negative finite numeric value.", call. = FALSE)
+  }
+
+  if (!is.numeric(ylim_top_expand) || length(ylim_top_expand) != 1 ||
+      is.na(ylim_top_expand) || !is.finite(ylim_top_expand) || ylim_top_expand < 0) {
     stop("`ylim_top_expand` must be one non-negative finite numeric value.", call. = FALSE)
   }
 
@@ -260,7 +356,12 @@ add_cross_facet_annotation <- function(plot_data,
   }
 
   .warn_if_numeric_label(cross_data, label)
-  cross_data <- .filter_ns_rows(cross_data, label, hide.ns)
+  cross_data <- .filter_ns_rows(
+    stat_data = cross_data,
+    label = label,
+    hide.ns = hide.ns,
+    signif.cutoff = signif.cutoff
+  )
 
   y_raw <- suppressWarnings(as.numeric(plot_data[[y]]))
   if (all(is.na(y_raw))) {
@@ -283,16 +384,17 @@ add_cross_facet_annotation <- function(plot_data,
   facet_ymax <- -Inf
   if (!is.null(facet_stat_data) && nrow(facet_stat_data) > 0) {
     facet_ready <- .prepare_pvalue_facet_annotation_data(
-      plot_data = plot_data,
-      stat_data = facet_stat_data,
-      x = x,
-      y = y,
-      facet_var = facet_var,
-      label = label,
-      hide.ns = hide.ns,
-      expand = expand,
+      plot_data     = plot_data,
+      stat_data     = facet_stat_data,
+      x             = x,
+      y             = y,
+      facet_var     = facet_var,
+      label         = label,
+      hide.ns       = hide.ns,
+      signif.cutoff = signif.cutoff,
+      expand        = expand,
       step.increase = step.increase,
-      x_levels = x_levels
+      x_levels      = x_levels
     )
 
     if (nrow(facet_ready) > 0 && "y.position" %in% colnames(facet_ready)) {
@@ -311,14 +413,13 @@ add_cross_facet_annotation <- function(plot_data,
     stop("Both facets must contain data in `plot_data`.", call. = FALSE)
   }
 
-  if (is.null(sig_offset)) {
-    sig_offset <- max(0.002, size * 0.002)
-  }
-  if (is.null(ns_offset)) {
-    ns_offset <- sig_offset + max(0.009, size * 0.009)
-  }
+  theme_def <- .get_theme_defaults()
+  axis_linewidth <- .get_theme_axis_linewidth()
+  axis_colour <- .get_theme_axis_colour()
 
-  text_fontsize <- size * getFromNamespace(".pt", "ggplot2") * 1.0
+  text_fontsize <- size * getFromNamespace(".pt", "ggplot2")
+  text_family <- theme_def$font_family
+  text_face <- if (!is.null(fontface)) fontface else theme_def$font_face
 
   x_index <- setNames(seq_along(x_levels), x_levels)
 
@@ -336,12 +437,14 @@ add_cross_facet_annotation <- function(plot_data,
   }
 
   line_grob <- grid::linesGrob(
-    gp = grid::gpar(col = "black", lwd = line_width)
+    gp = grid::gpar(
+      col = axis_colour,
+      lwd = .convert_linewidth_to_lwd(line_width)
+    )
   )
 
   layers <- list()
 
-  # broken x-axis
   for (i in seq_along(facet_levels)) {
     x_start <- if (i == 1) -Inf else 1 - axis_extend
     x_end   <- if (i == length(facet_levels)) Inf else n_groups + axis_extend
@@ -357,7 +460,7 @@ add_cross_facet_annotation <- function(plot_data,
     layers[[length(layers) + 1]] <- ggplot2::geom_segment(
       data = df_ax,
       mapping = ggplot2::aes(x = x_s, xend = x_e, y = -Inf, yend = -Inf),
-      color = "black",
+      color = axis_colour,
       linewidth = axis_linewidth,
       inherit.aes = FALSE
     )
@@ -371,6 +474,7 @@ add_cross_facet_annotation <- function(plot_data,
   }
 
   max_cross_label_y <- -Inf
+  label_band_height <- y_range * label_band_mult
 
   if (nrow(cross_data) > 0) {
     cross_data <- cross_data[
@@ -388,24 +492,25 @@ add_cross_facet_annotation <- function(plot_data,
 
       y_line <- y_base + y_range * (expand + (i - 1) * step.increase)
 
-      sig_trim <- trimws(sig)
-      is_ns <- tolower(sig_trim) == "ns"
-      this_offset <- if (is_ns) ns_offset else sig_offset
-      y_text <- y_line + y_range * this_offset
+      sig_trim <- trimws(tolower(sig))
+      is_ns <- sig_trim == "ns" | grepl("^p\\s*=\\s*ns$", sig_trim)
+      this_nudge_pt <- if (is_ns) ns_nudge_pt else sig_nudge_pt
 
-      max_cross_label_y <- max(max_cross_label_y, y_text, na.rm = TRUE)
+      y_top  <- y_line + label_band_height
+      max_cross_label_y <- max(max_cross_label_y, y_top, na.rm = TRUE)
 
       star_grob <- grid::grobTree(
         grid::textGrob(
           sig,
           x = 0.5,
-          y = 0.5,
+          y = grid::unit(this_nudge_pt, "pt"),
           hjust = 0.5,
-          vjust = 0.5,
+          vjust = 0,
           gp = grid::gpar(
-            col = "black",
+            col = axis_colour,
             fontsize = text_fontsize,
-            fontface = fontface
+            fontface = text_face,
+            fontfamily = text_family
           )
         )
       )
@@ -428,7 +533,8 @@ add_cross_facet_annotation <- function(plot_data,
         layers[[length(layers) + 1]] <- annotation_custom2(
           grob = star_grob,
           data = left_data,
-          ymin = y_text, ymax = y_text,
+          ymin = y_line,
+          ymax = y_top,
           xmin = gidx,
           xmax = length(x_levels) + 1
         )
@@ -436,7 +542,8 @@ add_cross_facet_annotation <- function(plot_data,
         layers[[length(layers) + 1]] <- annotation_custom2(
           grob = star_grob,
           data = right_data,
-          ymin = y_text, ymax = y_text,
+          ymin = y_line,
+          ymax = y_top,
           xmin = 0,
           xmax = gidx
         )

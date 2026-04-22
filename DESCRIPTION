@@ -1,7 +1,7 @@
 Package: tinysignifr
 Type: Package
 Title: Add Significance Annotations to ggplot2 Figures
-Version: 0.0.0.12
+Version: 0.0.0.20
 Authors@R: 
     person(given = "Yun",
            family = "Zhu",

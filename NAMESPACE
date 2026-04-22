@@ -3,3 +3,4 @@
 export(add_cross_facet_annotation)
 export(add_pvalue_annotation)
 export(add_pvalue_facet_annotation)
+export(add_pvalue_mixed)

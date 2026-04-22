@@ -2,7 +2,7 @@
 % Please edit documentation in R/add_cross_facet_annotation.R
 \name{add_cross_facet_annotation}
 \alias{add_cross_facet_annotation}
-\title{Add significance annotations across two facets}
+\title{Add significance annotations across two facet panels}
 \usage{
 add_cross_facet_annotation(
   plot_data,
@@ -14,160 +14,231 @@ add_cross_facet_annotation(
   group_col = "group",
   label = "p.adj.signif",
   hide.ns = TRUE,
+  signif.cutoff = 0.05,
   x_levels = NULL,
   y_base = NULL,
   facet_stat_data = NULL,
   expand = 0.12,
   step.increase = 0.1,
   size = 8,
-  fontface = "bold",
-  line_width = 3,
+  fontface = "plain",
+  line_width = 1,
   sig_offset = NULL,
   ns_offset = NULL,
+  sig_nudge_pt = -6,
+  ns_nudge_pt = 3.5,
+  label_band_mult = 0.06,
   axis_extend = NULL,
-  axis_linewidth = 1,
   auto_panel_fix = TRUE,
   auto_ylim = TRUE,
   ylim_top_expand = 0.002
 )
 }
 \arguments{
-\item{plot_data}{A data frame used for plotting. Objects coercible to a
-\code{data.frame} are also accepted.}
+\item{plot_data}{A data frame (or object coercible to one) used for plotting.
+Must include the columns named by \code{x}, \code{y}, and \code{facet_var}.}
 
-\item{cross_data}{A data frame containing cross-facet comparison results.
-This is typically the \verb{@stat} slot extracted from the S4 result returned
-by \code{\link[tinystatr:stat3]{tinystatr::stat3()}}. It must contain at least \code{group_col} and \code{label}.}
+\item{cross_data}{A data frame (or object coercible to one) containing
+cross-facet comparison results. Must contain at least the columns named by
+\code{group_col} and \code{label}. Typically constructed from the \verb{@stat} slot of
+\code{\link[tinystatr:stat2]{tinystatr::stat2()}} or \code{\link[tinystatr:stat3]{tinystatr::stat3()}}, with one row per x-group.}
 
-\item{x}{A single character string giving the x variable name in \code{plot_data}.}
-
-\item{y}{A single character string giving the y variable name in \code{plot_data}.}
-
-\item{facet_var}{A single character string giving the facet variable name in
+\item{x}{A single character string giving the x-axis variable name in
 \code{plot_data}.}
 
-\item{facet_levels}{Optional character vector of length 2 specifying which
-two facet levels to connect. If \code{NULL}, the function uses the detected facet
-order in \code{plot_data}.}
+\item{y}{A single character string giving the y-axis variable name in
+\code{plot_data}.}
+
+\item{facet_var}{A single character string giving the facet variable name in
+\code{plot_data}. Must match the variable used in \code{facet_wrap()}.}
+
+\item{facet_levels}{An optional character vector of length 2 specifying the
+two facet levels to connect, in left-to-right order. When \code{NULL} (default),
+the order is auto-detected from \code{plot_data[[facet_var]]}.}
 
 \item{group_col}{A single character string giving the column name in
-\code{cross_data} that identifies the x-group for cross-facet comparison.}
+\code{cross_data} that identifies the x-group for each cross-facet comparison.
+Defaults to \code{"group"}.}
 
-\item{label}{A single character string giving the column name in
-\code{cross_data} that stores significance labels, such as \code{"*"}, \code{"**"},
-or \code{"ns"}.}
+\item{label}{A single character string giving the column name in \code{cross_data}
+that stores significance labels. Defaults to \code{"p.adj.signif"}.}
 
-\item{hide.ns}{Logical; if \code{TRUE}, rows with label \code{"ns"} are removed before
-plotting.}
+\item{hide.ns}{Controls removal of non-significant rows before plotting.
+Defaults to \code{TRUE}. See \code{\link[=add_pvalue_annotation]{add_pvalue_annotation()}} for accepted values.}
 
-\item{x_levels}{Optional character vector specifying the order of x groups.
-If \code{NULL}, the order is inferred from \code{plot_data}.}
+\item{signif.cutoff}{A numeric threshold used when \code{hide.ns} targets a
+numeric column. Defaults to \code{0.05}.}
 
-\item{y_base}{Optional numeric scalar giving the baseline y position for the
-first cross-facet annotation. If \code{NULL}, the function estimates it from the
-maximum of the plotted data and optional facet annotation positions.}
+\item{x_levels}{An optional character vector specifying the order of x
+groups. When \code{NULL} (default), inferred from \code{plot_data[[x]]}.}
 
-\item{facet_stat_data}{Optional statistical results for within-facet
-comparisons, typically the \verb{@stat} slot from \code{\link[tinystatr:stat3]{tinystatr::stat3()}}. When
-provided and \code{y_base = NULL}, this is used to prevent overlap between
-within-facet and cross-facet annotations.}
+\item{y_base}{An optional single finite numeric value giving the baseline
+y-position from which cross-facet annotation heights are computed. When
+\code{NULL} (default), \code{y_base} is estimated automatically from the maximum of
+the raw data and, if provided, the highest within-facet bracket.}
 
-\item{expand}{Numeric scalar controlling how far above the base height the
-first cross-facet annotation is placed.}
+\item{facet_stat_data}{An optional data frame containing within-facet
+comparison results, typically the same \code{stat_data} passed to
+\code{\link[=add_pvalue_facet_annotation]{add_pvalue_facet_annotation()}}. When provided and \code{y_base = NULL}, this is
+used to place cross-facet annotations above within-facet brackets.}
 
-\item{step.increase}{Numeric scalar controlling the vertical spacing between
-successive cross-facet annotations.}
+\item{expand}{A numeric scalar controlling how far above \code{y_base} the first
+cross-facet line is placed, expressed as a fraction of the y-range.
+Defaults to \code{0.12}.}
 
-\item{size}{Numeric scalar giving the label text size.}
+\item{step.increase}{A numeric scalar controlling the vertical spacing
+between successive cross-facet lines, expressed as a fraction of the
+y-range. Defaults to \code{0.10}.}
 
-\item{fontface}{Character string specifying label font face, such as
-\code{"plain"} or \code{"bold"}.}
+\item{size}{A numeric scalar giving the text size of cross-facet labels.
+Defaults to \code{8}.}
 
-\item{line_width}{Numeric scalar giving the width of cross-facet horizontal
-lines.}
+\item{fontface}{A character string specifying the font face for cross-facet
+labels, e.g. \code{"bold"} or \code{"plain"}. Defaults to \code{"plain"}.}
 
-\item{sig_offset}{Optional numeric scalar controlling the vertical offset of
-significant labels (e.g. \code{"*"}, \code{"**"}). If \code{NULL}, an automatic value is
-used.}
+\item{line_width}{A numeric scalar giving the visual width of cross-facet
+horizontal lines, on a ggplot-like scale. Defaults to \code{1}.}
 
-\item{ns_offset}{Optional numeric scalar controlling the vertical offset of
-\code{"ns"} labels. If \code{NULL}, an automatic value is used and is set slightly
-higher than \code{sig_offset}.}
+\item{sig_offset}{Reserved for backward compatibility. Currently validated
+but not used in the current label placement system.}
 
-\item{axis_extend}{Optional numeric scalar controlling how far the custom
-broken x-axis extends into adjacent facet boundaries. If \code{NULL}, this is
-automatically chosen based on the number of x groups.}
+\item{ns_offset}{Reserved for backward compatibility. Currently validated
+but not used in the current label placement system.}
 
-\item{axis_linewidth}{Numeric scalar giving the line width of the custom
-broken x-axis.}
+\item{sig_nudge_pt}{A numeric scalar giving the vertical offset, in points,
+between a significant label (\code{"*"}, \code{"**"}, \code{"***"}, etc.) and its
+horizontal line. Can be negative. Defaults to \code{-6}.}
 
-\item{auto_panel_fix}{Logical; if \code{TRUE}, automatically add
-\code{panel.spacing.x = unit(0, "cm")} and \code{axis.line.x = element_blank()} to
-reduce visible gaps between facets.}
+\item{ns_nudge_pt}{A numeric scalar giving the vertical offset, in points,
+between an \code{"ns"} label and its horizontal line. Defaults to \code{3.5}.}
 
-\item{auto_ylim}{Logical; if \code{TRUE}, automatically expand the y-axis upper
-limit based on the maximum of raw data, within-facet annotations, and
-cross-facet annotations.}
+\item{label_band_mult}{A positive numeric scalar giving the vertical height
+reserved above each cross-facet line for the label, expressed as a
+fraction of the y-range. Defaults to \code{0.06}.}
 
-\item{ylim_top_expand}{Numeric scalar giving extra expansion above the highest
-detected annotation when \code{auto_ylim = TRUE}.}
+\item{axis_extend}{An optional non-negative numeric scalar controlling how
+far the broken x-axis extends toward the panel gap. A smaller value
+produces a wider visible gap. When \code{NULL} (default), the value is chosen
+automatically based on the number of x groups.}
+
+\item{auto_panel_fix}{Logical. When \code{TRUE} (default), automatically injects
+\code{theme(panel.spacing.x = unit(0, "cm"), axis.line.x = element_blank())}
+to close the gap between panels and remove the default continuous x-axis
+line.}
+
+\item{auto_ylim}{Logical. When \code{TRUE} (default), automatically injects
+\code{coord_cartesian(ylim = c(y_min, y_upper), clip = "off")}, where \code{y_upper}
+is computed from the highest annotation position. When \code{FALSE}, only
+\code{coord_cartesian(clip = "off")} is added.}
+
+\item{ylim_top_expand}{A single non-negative numeric value giving additional
+expansion above the highest detected annotation when \code{auto_ylim = TRUE},
+expressed as a fraction of the y-range. Defaults to \code{0.002}.}
 }
 \value{
-A list of \code{ggplot2} layers that can be added to a ggplot object.
+A list of ggplot2 layers that can be added to a \code{ggplot} object
+with \code{+}.
 }
 \description{
-Add horizontal significance lines and labels across two facet panels in a
-faceted \code{ggplot2} figure. This function is designed for plots with exactly
-two facet levels arranged horizontally, and is especially useful when
-comparisons are made between the same x-group across two facets.
+Draw horizontal significance lines and labels that span across two
+horizontally adjacent facet panels in a \code{ggplot2} figure.
 }
 \details{
-In addition to drawing cross-facet significance annotations, this function
-can:
+In addition to cross-facet annotations, this function:
 \itemize{
-\item automatically remove the gap between facet panels on the x-axis,
-\item hide the default x-axis line,
-\item estimate a safe upper y-limit to avoid overlap between annotations
-and the plotting region,
-\item place \code{"ns"} labels slightly higher than significance symbols.
+\item draws a broken x-axis between the two facet panels,
+\item can automatically remove the default continuous x-axis line and set
+panel spacing to zero (\code{auto_panel_fix = TRUE}),
+\item can automatically expand the upper y-limit to prevent clipping of
+labels and lines (\code{auto_ylim = TRUE}),
+\item coordinates with within-facet bracket heights via \code{facet_stat_data}
+to reduce overlap,
+\item inherits axis line colour, axis line width, and text family from the
+active ggplot2 theme.
 }
 
-This function currently supports exactly two facet panels. It is intended for
-horizontally arranged facets, such as those produced by
-\code{facet_wrap(..., nrow = 1)} or equivalent layouts.
+This function is intended to be used together with
+\code{\link[=add_pvalue_facet_annotation]{add_pvalue_facet_annotation()}} when both within-facet and cross-facet
+annotations are needed.
 
-The \code{cross_data} input should contain one row per cross-facet annotation. The
-group specified by \code{group_col} must match one of the x-axis groups in
-\code{plot_data}.
+This function currently supports exactly two horizontally arranged facet
+panels.
 
-If \code{facet_stat_data} is supplied, the function internally computes the
-maximum within-facet annotation height and uses it together with the raw data
-maximum to determine a safe starting height for cross-facet annotations.
+The broken x-axis is drawn using the current ggplot2 theme axis line
+settings. Cross-facet text labels inherit the current theme text family, and
+line and text colour inherit the current theme axis line colour.
 
-Because this function may internally modify panel spacing, x-axis appearance,
-and y-axis limits, it should usually be added at the end of the ggplot
-construction, preferably after \code{theme()} and other scale or coordinate
-settings.
+Label positions are controlled using fixed point-based offsets
+(\code{sig_nudge_pt}, \code{ns_nudge_pt}) rather than pure data-scale offsets, so the
+apparent distance between the label and the line remains more stable when the
+figure size changes.
+
+This function should generally be added as the final layer in the ggplot call
+chain, because it injects \code{coord_cartesian()} and may also inject a \code{theme()}
+adjustment.
 }
 \examples{
 \dontrun{
-p +
-  theme_prism() +
-  theme(...) +
+library(ggplot2)
+library(dplyr)
+library(tinystatr)
+library(tinysignifr)
+
+data("ToothGrowth")
+ToothGrowth$dose <- factor(ToothGrowth$dose, levels = c("0.5", "1", "2"))
+ToothGrowth$supp <- factor(ToothGrowth$supp, levels = c("OJ", "VC"))
+
+stat_within <- rbind(
+  stat3(
+    dplyr::filter(ToothGrowth, supp == "OJ"),
+    "dose", "len", formula = len ~ dose
+  )@stat \%>\% mutate(supp = "OJ"),
+  stat3(
+    dplyr::filter(ToothGrowth, supp == "VC"),
+    "dose", "len", formula = len ~ dose
+  )@stat \%>\% mutate(supp = "VC")
+)
+
+stat_cross <- do.call(rbind, lapply(levels(ToothGrowth$dose), function(d) {
+  stat3(
+    dplyr::filter(ToothGrowth, dose == d),
+    "supp", "len", formula = len ~ supp
+  )@stat \%>\% mutate(dose_group = d)
+}))
+
+ggplot(ToothGrowth, aes(x = dose, y = len)) +
+  geom_violin(aes(color = dose), fill = NA) +
+  facet_wrap(~ supp, strip.position = "bottom") +
+  scale_x_discrete(expand = expansion(add = 0.7)) +
+  theme_classic() +
+  theme(
+    strip.placement  = "outside",
+    strip.background = element_rect(color = NA),
+    legend.position  = "none"
+  ) +
+  add_pvalue_facet_annotation(
+    plot_data = ToothGrowth,
+    stat_data = stat_within,
+    x = "dose",
+    y = "len",
+    facet_var = "supp",
+    hide.ns = FALSE
+  ) +
   add_cross_facet_annotation(
-    plot_data = testdata,
-    cross_data = cross_cpg,
-    x = "group",
-    y = "value",
-    facet_var = "diet",
-    group_col = "smoke",
+    plot_data = ToothGrowth,
+    cross_data = stat_cross,
+    x = "dose",
+    y = "len",
+    facet_var = "supp",
+    group_col = "dose_group",
     label = "p.adj.signif",
-    hide.ns = TRUE,
-    facet_stat_data = stat_cpg,
-    expand = 0.12,
-    step.increase = 0.10,
-    size = 6
+    hide.ns = FALSE,
+    facet_stat_data = stat_within
   )
 }
 
+}
+\seealso{
+\code{\link[=add_pvalue_annotation]{add_pvalue_annotation()}}, \code{\link[=add_pvalue_facet_annotation]{add_pvalue_facet_annotation()}},
+\code{\link[=add_pvalue_mixed]{add_pvalue_mixed()}}
 }
