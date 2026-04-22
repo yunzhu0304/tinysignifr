@@ -1,7 +1,8 @@
-# tinysignifr <img src="man/figures/logo.png" align="right" height="139" alt="" />
+# tinysignifr
 
 > Automatic significance bracket annotation for `ggplot2` — with full support
-> for faceted plots, cross-facet comparisons, and mixed symbol styles.
+for faceted plots, cross-facet comparisons, and mixed symbol styles.
+> 
 
 ---
 
@@ -14,7 +15,7 @@ call. All y-axis bracket positions are computed automatically — no manual
 calculation needed.
 
 | Function | Use case |
-|---|---|
+| --- | --- |
 | `add_pvalue_annotation()` | Single-panel plots with standard `*` labels |
 | `add_pvalue_mixed()` | Single-panel plots with **mixed** symbol types (e.g. `*` and `#`) |
 | `add_pvalue_facet_annotation()` | **Within-facet** brackets in a faceted plot |
@@ -52,7 +53,7 @@ library(dplyr)
 Raw data
    │
    ▼
-stat3() / stat2()          ← tinystatr: auto-selects statistical method
+stat3()                    ← tinystatr: auto-selects statistical method
    │
    └── @stat slot          ← data frame of pairwise comparison results
           │
@@ -63,10 +64,10 @@ stat3() / stat2()          ← tinystatr: auto-selects statistical method
    add_cross_facet_annotation()
 ```
 
-> **Critical rule**: All `tinysignifr` functions must be added **after**
-> `theme()` in the ggplot call chain. `add_cross_facet_annotation()` must
-> always be the **very last** layer, as it injects `coord_cartesian()` and
-> `theme()` modifications that must not be overridden.
+> **Critical rule**: All `tinysignifr` functions must be added **after** `theme()` in the ggplot call chain. `add_cross_facet_annotation()` must
+always be the **very last** layer, as it injects `coord_cartesian()` and
+`theme()` modifications that must not be overridden.
+> 
 
 ---
 
@@ -94,10 +95,10 @@ stat_result <- stat3(
 # Extract the @stat slot — this is the input for tinysignifr
 stat_df <- stat_result@stat
 stat_df
-#   group1 group2        p.adj posthoc variable           p1 P1method p.adj.signif
-# 1    0.5      1 1.268342e-07     hsd       id 9.532777e-16    ANOVA         ****
-# 2    0.5      2 4.398450e-14     hsd       id 9.532777e-16    ANOVA         ****
-# 3      1      2 1.378340e-04     hsd       id 9.532777e-16    ANOVA         ***
+# group2 group1        p.adj posthoc variable           p1 P1method p.adj.signif
+# 1      1    0.5 2.002297e-08     hsd       id 9.532727e-16    ANOVA         ****
+# 2      2    0.5 1.121847e-11     hsd       id 9.532727e-16    ANOVA         ****
+# 3      2      1 4.248038e-05     hsd       id 9.532727e-16    ANOVA         ****
 ```
 
 ### Plot with significance brackets
@@ -128,10 +129,12 @@ ggplot(ToothGrowth, aes(x = dose, y = len)) +
   )
 ```
 
+<img width="300" height="400" alt="add_pvalue_annotation" src="https://github.com/user-attachments/assets/794bd132-55d0-4b49-b28b-9168897a85a7" />
+
 ### Key parameters
 
 | Parameter | Default | Description |
-|---|---|---|
+| --- | --- | --- |
 | `hide.ns` | `FALSE` | `TRUE` removes `"ns"` rows; `"p.adj"` filters by adjusted p-value |
 | `signif.cutoff` | `0.05` | Threshold used when `hide.ns` targets a numeric column |
 | `expand` | `0.12` | Gap above data to first bracket (fraction of y range) |
@@ -167,6 +170,8 @@ one-sided p-values:
 
 ```r
 # After running stat3(), add one-sided annotation
+# Error will occur
+# Do not run next! Please run the demo below!!!
 stat_df$p.adj.signif <- ifelse(
   stat_df$p.adj.signif == "ns" & stat_df$p.oneside < 0.05,
   "#",
@@ -202,6 +207,9 @@ ggplot(ToothGrowth, aes(x = dose, y = len)) +
   )
 ```
 
+<img width="300" height="400" alt="add_pvalue_mixed" src="https://github.com/user-attachments/assets/49af0124-513c-493f-88fa-e83b7bea6d1d" />
+
+
 ### `special_symbols` accepted values
 
 ```r
@@ -218,18 +226,10 @@ These two functions are **designed to work together**:
 
 - `add_pvalue_facet_annotation()` draws brackets **within** each facet panel
 - `add_cross_facet_annotation()` draws lines **across** facet panels, adds a
-  broken x-axis gap, and uses `facet_stat_data` to prevent overlap
+broken x-axis gap, and uses `facet_stat_data` to prevent overlap
 
-```
- facet: OJ                       facet: VC
- ┌─────────────────┐              ┌─────────────────┐
- │      **         │◄─cross-facet─►│      *          │
- │   ┌──────┐      │    line       │   ┌──────┐      │
- │   │violin│      │               │   │violin│      │
- └─────────────────┘              └─────────────────┘
-   0.5   1   2                      0.5   1   2
-    ↑ within-facet brackets ↑
-```
+<img width="500" height="500" alt="add_pvalue_facet_annotation" src="https://github.com/user-attachments/assets/a4d2f1e0-f4eb-42d6-af6a-e1dcdafc86b5" />
+
 
 ### Statistical analysis with `tinystatr`
 
@@ -495,8 +495,7 @@ add_cross_facet_annotation(
 
 ## 7. Common issues and solutions
 
-**Cross-facet lines have a gap in the middle.**
-`panel.spacing.x` is not zero. Set `auto_panel_fix = TRUE` (default) in
+**Cross-facet lines have a gap in the middle.** `panel.spacing.x` is not zero. Set `auto_panel_fix = TRUE` (default) in
 `add_cross_facet_annotation()`, or manually add
 `theme(panel.spacing.x = unit(0, "cm"))` before calling the function.
 
@@ -529,5 +528,9 @@ cross-facet lines above the highest within-facet bracket.
 ## See also
 
 - [`tinystatr`](https://github.com/yunzhu0304/tinystatr) — automated
-  statistical method selection that produces the `@stat` input for `tinysignifr`
+statistical method selection that produces the `@stat` input for `tinysignifr`
 - [`ggpubr::stat_pvalue_manual()`](https://rpkgs.datanovia.com/ggpubr/reference/stat_pvalue_manual.html) — the underlying bracket rendering engine used by `add_pvalue_annotation()`, `add_pvalue_mixed()`, and `add_pvalue_facet_annotation()`
+
+## ☎️Contact
+
+For questions or issues, please contact the package maintainer at Zhu.Yun@mh-hannover.de or visit the GitHub repository: [https://github.com/yunzhu0304/tinysignifr](https://github.com/yunzhu0304/tinysignifr).
